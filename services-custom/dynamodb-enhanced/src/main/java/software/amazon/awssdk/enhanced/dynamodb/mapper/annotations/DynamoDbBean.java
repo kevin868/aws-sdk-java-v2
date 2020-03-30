@@ -22,6 +22,7 @@ import java.lang.annotation.Target;
 import software.amazon.awssdk.annotations.SdkPublicApi;
 import software.amazon.awssdk.enhanced.dynamodb.AttributeConverter;
 import software.amazon.awssdk.enhanced.dynamodb.AttributeConverterProvider;
+import software.amazon.awssdk.enhanced.dynamodb.EnhancedType;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.BeanTableSchema;
 
 /**
@@ -39,5 +40,13 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.BeanTableSchema;
 @Retention(RetentionPolicy.RUNTIME)
 @SdkPublicApi
 public @interface DynamoDbBean {
-    Class<? extends AttributeConverterProvider>[] converterProviders() default {};
+    Class<? extends AttributeConverterProvider>[] converterProviders()
+            default { NoAttributeConverterProviderOverride.class };
+
+    final class NoAttributeConverterProviderOverride implements AttributeConverterProvider {
+        @Override
+        public <T> AttributeConverter<T> converterFor(EnhancedType<T> enhancedType) {
+            return null;
+        }
+    }
 }

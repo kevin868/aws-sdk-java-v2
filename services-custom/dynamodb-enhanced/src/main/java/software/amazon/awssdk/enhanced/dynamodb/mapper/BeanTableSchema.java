@@ -191,8 +191,10 @@ public final class BeanTableSchema<T> implements TableSchema<T> {
         StaticTableSchema.Builder<T> builder = StaticTableSchema.builder(beanClass)
                                                                 .newItemSupplier(newObjectSupplier);
 
-        Optional<AttributeConverterProvider> attributeConverterProvider = converterProviderAnnotation(dynamoDbBean);
-        attributeConverterProvider.ifPresent(builder::attributeConverterProvider);
+        List<AttributeConverterProvider> attributeConverterProviders = converterProviderAnnotation(dynamoDbBean);
+        if (attributeConverterProviders != null) {
+            builder.attributeConverterProviders(attributeConverterProviders);
+        }
 
         List<StaticAttribute<T, ?>> attributes = new ArrayList<>();
 
@@ -222,12 +224,23 @@ public final class BeanTableSchema<T> implements TableSchema<T> {
         return builder.build();
     }
 
-    private static Optional<AttributeConverterProvider> converterProviderAnnotation(DynamoDbBean dynamoDbBean) {
-        Class<?>[] converterClasses = dynamoDbBean.converterProviders();
-        //TODO: temporary solution to pick one AttributeConverterProvider.
-        return converterClasses.length > 0 ?
-               Optional.of((AttributeConverterProvider) newObjectSupplierForClass(converterClasses[0]).get()) :
-               Optional.empty();
+    private static List<AttributeConverterProvider> converterProviderAnnotation(DynamoDbBean dynamoDbBean) {
+        Class<? extends AttributeConverterProvider>[] providerClasses = dynamoDbBean.converterProviders();
+
+        if (shouldNotOverrideConverterProviders(providerClasses)) {
+            return null;
+        }
+
+        return Arrays.stream(providerClasses)
+                .map(c -> (AttributeConverterProvider) newObjectSupplierForClass(c).get())
+                .collect(Collectors.toList());
+    }
+
+    private static boolean shouldNotOverrideConverterProviders(
+            Class<? extends AttributeConverterProvider>[] providerClasses) {
+        Class<? extends AttributeConverterProvider> noAttributeConverterProviderOverrideClass =
+                DynamoDbBean.NoAttributeConverterProviderOverride.class;
+        return providerClasses.length == 1 && providerClasses[0].equals(noAttributeConverterProviderOverrideClass);
     }
 
     @SuppressWarnings("unchecked")
